@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
 import { lighten, makeStyles } from '@material-ui/core/styles';
@@ -16,29 +16,36 @@ import Paper from '@material-ui/core/Paper';
 import Checkbox from '@material-ui/core/Checkbox';
 import IconButton from '@material-ui/core/IconButton';
 import Tooltip from '@material-ui/core/Tooltip';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Switch from '@material-ui/core/Switch';
 import DeleteIcon from '@material-ui/icons/Delete';
 import FilterListIcon from '@material-ui/icons/FilterList';
 import { useQuery, gql } from '@apollo/client';
 
-const QUERY = gql`
+const QUERY1 = gql`
 {
-  Asvs {
-    ser
+  GetArchCrypto {
+    serial
+    cweId
+    stage
+    description
+  }
+}
+`
+const QUERY2 = gql`
+{
+  Asvs(filter: {stage: "Architecture"}) {
+    serial
+    cweId
+    stage
+    description
   }
 }
 `
 
 
-function createData(primary, weakness, secondary, stage, description) {
-  return { primary, weakness, secondary, stage, description };
+function createData(serial, cweId, stage, description) {
+  return { serial, cweId, stage, description };
 }
 
-const rows = [
-  createData('Cupcake', 305, 3.7, 67, 4.3, "test1"),
-  createData('Donut', 452, 25.0, 51, 4.9, "Test2"),
-];
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -67,9 +74,8 @@ function stableSort(array, comparator) {
 }
 
 const headCells = [
-  { id: 'primary', numeric: false, disablePadding: false, label: 'Primary' },
-  { id: 'weakness', numeric: true, disablePadding: true, label: 'Weakness' },
-  { id: 'secondary', numeric: false, disablePadding: false, label: 'Secondary' },
+  { id: 'serial', numeric: false, disablePadding: false, label: 'Primary Serial' },
+  { id: 'cweId', numeric: true, disablePadding: true, label: 'Weakness' },
   { id: 'stage', numeric: false, disablePadding: false, label: 'Stage' },
   { id: 'description', numeric: false, disablePadding: false, label: 'Description' },
 ];
@@ -94,7 +100,7 @@ function EnhancedTableHead(props) {
         {headCells.map((headCell) => (
           <TableCell
             key={headCell.id}
-            align={headCell.numeric ? 'right' : 'left'}
+            // align={headCell.numeric ? 'right' : 'left'}
             padding={headCell.disablePadding ? 'none' : 'default'}
             sortDirection={orderBy === headCell.id ? order : false}
           >
@@ -163,7 +169,7 @@ const EnhancedTableToolbar = (props) => {
         </Typography>
       ) : (
         <Typography className={classes.title} variant="h6" id="tableTitle" component="div">
-          Nutrition
+          Architecture
         </Typography>
       )}
 
@@ -220,6 +226,8 @@ const Architecture = () => {
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rows, setRows] = useState([]);
+  const { loading, error, data } = useQuery(QUERY2);
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -227,9 +235,14 @@ const Architecture = () => {
     setOrderBy(property);
   };
 
+  useEffect(() => {
+    if(!loading && !error) {
+      setRows(data.Asvs.map(({serial, cweId, stage, description}) => createData(serial, cweId, stage, description)));
+    }
+  },[loading, error, data])
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = rows.map((n) => n.primary);
+      const newSelecteds = rows.map((n) => n.serial);
       setSelected(newSelecteds);
       return;
     }
@@ -281,7 +294,7 @@ const Architecture = () => {
           <Table
             className={classes.table}
             aria-labelledby="tableTitle"
-            size={dense ? 'small' : 'medium'}
+            size={'medium'}
             aria-label="enhanced table"
           >
             <EnhancedTableHead
@@ -297,17 +310,17 @@ const Architecture = () => {
               {stableSort(rows, getComparator(order, orderBy))
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row, index) => {
-                  const isItemSelected = isSelected(row.primary);
+                  const isItemSelected = isSelected(row.serial);
                   const labelId = `enhanced-table-checkbox-${index}`;
 
                   return (
                     <TableRow
                       hover
-                      onClick={(event) => handleClick(event, row.primary)}
+                      onClick={(event) => handleClick(event, row.serial)}
                       role="checkbox"
                       aria-checked={isItemSelected}
                       tabIndex={-1}
-                      key={row.primary}
+                      key={row.serial}
                       selected={isItemSelected}
                     >
                       <TableCell padding="checkbox">
@@ -317,12 +330,11 @@ const Architecture = () => {
                         />
                       </TableCell>
                       <TableCell component="th" id={labelId} scope="row" padding="none">
-                        {row.primary}
+                        {row.serial}
                       </TableCell>
-                      <TableCell align="right">{row.weakness}</TableCell>
-                      <TableCell align="right">{row.secondary}</TableCell>
-                      <TableCell align="right">{row.stage}</TableCell>
-                      <TableCell align="right">{row.description}</TableCell>
+                      <TableCell >{row.cweId}</TableCell>
+                      <TableCell >{row.stage}</TableCell>
+                      <TableCell >{row.description}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -344,10 +356,7 @@ const Architecture = () => {
           onChangeRowsPerPage={handleChangeRowsPerPage}
         />
       </Paper>
-      <FormControlLabel
-        control={<Switch checked={dense} onChange={handleChangeDense} />}
-        label="Dense padding"
-      />
+      
     </div>
   );
 }
